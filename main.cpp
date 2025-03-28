@@ -6,15 +6,16 @@ const TGAColor red = TGAColor(255, 0, 0, 255);
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
     bool lean = false;
-    if (std::abs((float)(x1 - x0) / (float)(y1 - y0)) > 1)
+    if (std::abs((float)(y1 - y0) / (float)(x1 - x0)) > 1)
     {
         lean = true;
-        std::swap(x0, x1);
-        std::swap(y0, y1);
+        std::swap(x0, y0);
+        std::swap(x1, y1);
     }
     if (x0 > x1)
     {
         std::swap(x0, x1);
+        std::swap(y0, y1);
     }
     for (int x = x0; x < x1; x++)
     {
