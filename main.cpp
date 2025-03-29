@@ -1,5 +1,6 @@
 #include <vector>
 #include <cmath>
+#include <algorithm>
 #include "tgaimage.cpp" //tga画图库
 #include "model.cpp"    //模型类，主要实现模型的读取
 #include "geometry.cpp" //几何库，主要定义了Vec2和Vec3类型
@@ -32,7 +33,26 @@ Matrix v2m(Vec3f v)
     return m;
 }
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
+bool tri_compare(const Vec2i &a, const Vec2i &b)
+{
+    if (a.y != b.y)
+        return a.y < b.y;
+    return a.x < b.x;
+}
+
+struct ScreenTriangle
+{
+    std::vector<Vec2i> ts;
+    ScreenTriangle(Vec2i t0, Vec2i t1, Vec2i t2)
+    {
+        ts.push_back(t0);
+        ts.push_back(t1);
+        ts.push_back(t2);
+        std::sort(ts.begin(), ts.end(), tri_compare);
+    }
+};
+
+void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
     bool lean = false;
     if (std::abs((float)(y1 - y0) / (float)(x1 - x0)) > 1)
@@ -54,36 +74,49 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
     }
 }
 
+void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
+{
+    for (int y = t.ts[0].y; y < t.ts[2].y; y++)
+    {
+        int x0 = (float)(y - t.ts[2].y) / (float)(t.ts[0].y - t.ts[2].y) * (t.ts[0].x - t.ts[2].x) + t.ts[2].x;
+        int x1 = 0;
+        if (y < t.ts[1].y)
+        {
+            x1 = (float)(y - t.ts[1].y) / (float)(t.ts[0].y - t.ts[1].y) * (t.ts[0].x - t.ts[1].x) + t.ts[1].x;
+        }
+        else
+        {
+            x1 = (float)(y - t.ts[1].y) / (float)(t.ts[2].y - t.ts[1].y) * (t.ts[2].x - t.ts[1].x) + t.ts[1].x;
+        }
+        if (x0 > x1)
+        {
+            std::swap(x0, x1);
+        }
+        for (int x = x0; x < x1; x++)
+        {
+            image.set(x, y, color);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     TGAImage image(width, height, TGAImage::RGB);
-    model = new Model("./obj/african_head.obj ");
+    model = new Model("./obj/man.obj ");
     for (int i = 0; i < model->nfaces(); i++)
     {
         std::vector<int> face = model->face(i);
-        for (int k = 0; k < 3; k++)
-        {
-            Vec3f v0 = model->vert(face[k]);
-            Vec3f v1 = model->vert(face[(k + 1) % 3]);
-
-            Matrix project(4, 4);
-            project[0][0] = 2 * n / (r - l);
-            project[0][2] = (l + r) / (l - r);
-            project[1][1] = 2 * n / (t - b);
-            project[1][2] = (b + t) / (b - t);
-            project[2][2] = (f + n) / (n - f);
-            project[2][3] = 2 * f * n / (f - n);
-            project[3][2] = 1;
-
-            Vec3f v0_pro = m2v(project * v2m(v0));
-            Vec3f v1_pro = m2v(project * v2m(v1));
-
-            int x0 = (v0.x + 1.) * width / 2.;
-            int y0 = (v0.y + 1.) * height / 2.;
-            int x1 = (v1.x + 1.) * width / 2.;
-            int y1 = (v1.y + 1.) * height / 2.;
-            line(v0_pro[0], v0_pro[1], v1_pro[0], v1_pro[1], image, white);
-        }
+        Vec3f v0 = model->vert(face[0]);
+        Vec3f v1 = model->vert(face[1]);
+        Vec3f v2 = model->vert(face[2]);
+        Vec2i t0((v0.x + 1.0) * width / 2.0, (v0.y + 1.0) * height / 2.0);
+        Vec2i t1((v1.x + 1.0) * width / 2.0, (v1.y + 1.0) * height / 2.0);
+        Vec2i t2((v2.x + 1.0) * width / 2.0, (v2.y + 1.0) * height / 2.0);
+        draw_line(t0.x, t0.y, t1.x, t1.y, image, white);
+        draw_line(t0.x, t0.y, t2.x, t2.y, image, white);
+        draw_line(t1.x, t1.y, t2.x, t2.y, image, white);
+        ScreenTriangle tri{t0, t1, t2};
+        draw_triangle(tri, image, white);
     }
     image.flip_vertically();
     image.write_tga_file("output.tga");
