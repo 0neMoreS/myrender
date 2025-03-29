@@ -4,6 +4,7 @@
 #include "tgaimage.cpp" //tga画图库
 #include "model.cpp"    //模型类，主要实现模型的读取
 #include "geometry.cpp" //几何库，主要定义了Vec2和Vec3类型
+#include "utils.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
@@ -12,45 +13,6 @@ Model *model = NULL;
 const int width = 800;
 const int height = 800;
 const int l = -1, b = -1, n = 1, r = 1, t = 1, f = -1;
-
-// 4d-->3d
-// 除以最后一个分量。（当最后一个分量为0，表示向量）
-// 不为0，表示坐标
-Vec3f m2v(Matrix m)
-{
-    return Vec3f(m[0][0] / m[3][0], m[1][0] / m[3][0], m[2][0] / m[3][0]);
-}
-
-// 3d-->4d
-// 添加一个1表示坐标
-Matrix v2m(Vec3f v)
-{
-    Matrix m(4, 1);
-    m[0][0] = v.x;
-    m[1][0] = v.y;
-    m[2][0] = v.z;
-    m[3][0] = 1.f;
-    return m;
-}
-
-bool tri_compare(const Vec2i &a, const Vec2i &b)
-{
-    if (a.y != b.y)
-        return a.y < b.y;
-    return a.x < b.x;
-}
-
-struct ScreenTriangle
-{
-    std::vector<Vec2i> ts;
-    ScreenTriangle(Vec2i t0, Vec2i t1, Vec2i t2)
-    {
-        ts.push_back(t0);
-        ts.push_back(t1);
-        ts.push_back(t2);
-        std::sort(ts.begin(), ts.end(), tri_compare);
-    }
-};
 
 void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
@@ -103,19 +65,27 @@ int main(int argc, char **argv)
 {
     TGAImage image(width, height, TGAImage::RGB);
     model = new Model("./obj/man.obj ");
+    Ray light(Vec3f{0.0, 0.0, 0.0}, Vec3f{0.0, 0.0, 0.0});
     for (int i = 0; i < model->nfaces(); i++)
     {
-        std::vector<int> face = model->face(i);
-        Vec3f v0 = model->vert(face[0]);
-        Vec3f v1 = model->vert(face[1]);
-        Vec3f v2 = model->vert(face[2]);
-        Vec2i t0((v0.x + 1.0) * width / 2.0, (v0.y + 1.0) * height / 2.0);
-        Vec2i t1((v1.x + 1.0) * width / 2.0, (v1.y + 1.0) * height / 2.0);
-        Vec2i t2((v2.x + 1.0) * width / 2.0, (v2.y + 1.0) * height / 2.0);
-        draw_line(t0.x, t0.y, t1.x, t1.y, image, white);
-        draw_line(t0.x, t0.y, t2.x, t2.y, image, white);
-        draw_line(t1.x, t1.y, t2.x, t2.y, image, white);
-        ScreenTriangle tri{t0, t1, t2};
+        std::vector<Vec3f> verts{3};
+        std::vector<Vec3f> normals{3};
+        std::vector<Vec2i> screen_tris{3};
+
+        for (int j = 0; j < 3; j++)
+        {
+            verts[j] = model->vert(i, j);
+            normals[j] = model->normal(i, j);
+            int x = (verts[j].x + 1.0) * width / 2.0, y = (verts[j].y + 1.0) * height / 2.0;
+            screen_tris[j] = {x, y};
+        }
+
+        // for (int j = 0; j < 3; j++)
+        // {
+        //     draw_line(screen_tris[j].x, screen_tris[j].y, screen_tris[(j + 1) % 3].x, screen_tris[(j + 1) % 3].y, image, red);
+        // }
+
+        ScreenTriangle tri{screen_tris};
         draw_triangle(tri, image, white);
     }
     image.flip_vertically();
