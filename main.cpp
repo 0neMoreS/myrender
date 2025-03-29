@@ -12,7 +12,9 @@ Model *model = NULL;
 // 定义宽度高度
 const int width = 800;
 const int height = 800;
+const float K_d = 0.8;
 const int l = -1, b = -1, n = 1, r = 1, t = 1, f = -1;
+Ray light(Vec3f{0.0, 0.0, 10.0}, Vec3f{0.0, 0.0, 0.0});
 
 void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
@@ -65,7 +67,6 @@ int main(int argc, char **argv)
 {
     TGAImage image(width, height, TGAImage::RGB);
     model = new Model("./obj/man.obj ");
-    Ray light(Vec3f{0.0, 0.0, 0.0}, Vec3f{0.0, 0.0, 0.0});
     for (int i = 0; i < model->nfaces(); i++)
     {
         std::vector<Vec3f> verts{3};
@@ -84,9 +85,17 @@ int main(int argc, char **argv)
         // {
         //     draw_line(screen_tris[j].x, screen_tris[j].y, screen_tris[(j + 1) % 3].x, screen_tris[(j + 1) % 3].y, image, red);
         // }
-
         ScreenTriangle tri{screen_tris};
-        draw_triangle(tri, image, white);
+
+        Vec3f normals_avg = (normals[0] + normals[1] + normals[2]).normalize();
+        normals_avg = cross((verts[2] - verts[0]), (verts[1] - verts[0])).normalize();
+        Vec3f verts_avg = (verts[0] + verts[1] + verts[2]) / 3;
+        float cos_theta = (verts_avg - light.o).normalize() * normals_avg;
+        if (cos_theta > 0)
+        {
+            TGAColor color{white * (cos_theta * K_d)};
+            draw_triangle(tri, image, color);
+        }
     }
     image.flip_vertically();
     image.write_tga_file("output.tga");
