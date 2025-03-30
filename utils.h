@@ -33,10 +33,12 @@ Model *model = NULL;
 // 定义宽度高度
 const int width = 800;
 const int height = 800;
-const float K_d = 0.8;
-const int l = -1, b = -1, n = 1, r = 1, t = 1, f = -1;
+const float K_d = 0.8f;
+const float l = -1.f, b = -1.f, n = 1.f, r = 1.f, t = 1.f, f = -10.f;
 Ray light(Vec3f{0.0, 0.0, 10.0}, Vec3f{0.0, 0.0, 0.0});
 float zbuffer[width][height];
+Matrix perspective;
+Matrix view_port;
 
 void init_zbuffer()
 {
@@ -44,9 +46,49 @@ void init_zbuffer()
     {
         for (int j = 0; j < height; j++)
         {
-            zbuffer[i][j] = std::numeric_limits<float>::min();
+            zbuffer[i][j] = std::numeric_limits<float>::lowest();
         }
     }
+}
+
+void init_matrix()
+{
+    view_port[0][0] = width / 2.f;
+    view_port[0][3] = width / 2.f;
+    view_port[1][1] = height / 2.f;
+    view_port[1][3] = height / 2.f;
+    view_port[2][2] = 1.f;
+    view_port[3][3] = 1.f;
+
+    Matrix move;
+    move[0][0] = 1.f;
+    move[0][3] = -(r + l) / 2;
+    move[1][1] = 1.f;
+    move[1][3] = -(t + b) / 2;
+    move[2][2] = 1.f;
+    move[2][3] = -(n + f) / 2;
+    move[3][3] = 1.f;
+
+    Matrix scale;
+    scale[0][0] = 2 / (r - l);
+    scale[1][1] = 2 / (t - b);
+    scale[2][2] = 2 / (n - f);
+    scale[3][3] = 1;
+
+    Matrix persp_to_ortho;
+    persp_to_ortho[0][0] = n;
+    persp_to_ortho[1][1] = n;
+    persp_to_ortho[2][2] = n + f;
+    persp_to_ortho[2][3] = -n * f;
+    persp_to_ortho[3][2] = 1;
+    perspective = scale * move * persp_to_ortho;
+    // perspective[0][0] = 2 * n / (r - l);
+    // perspective[0][2] = (l + r) / (l - r);
+    // perspective[1][1] = 2 * n / (t - b);
+    // perspective[1][2] = (b + t) / (b - t);
+    // perspective[2][2] = (f + n) / (n - f);
+    // perspective[2][3] = (2 * f * n) / (f - n);
+    // perspective[3][2] = 1;
 }
 
 Vec3f barycentric(ScreenTriangle &t, Vec2f P)
@@ -104,7 +146,6 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
         {
             std::swap(x0, x1);
         }
-        // 直到最后作图再转成int
         for (float x = x0; x < x1; x++)
         {
             Vec3f uv = barycentric(t, Vec2f{x, y});
