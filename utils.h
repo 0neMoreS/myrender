@@ -21,12 +21,6 @@ struct ScreenTriangle
     }
 };
 
-struct Ray
-{
-    Vec3f o, d;
-    Ray(Vec3f _o, Vec3f _d) : o(_o), d(_d) {}
-};
-
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 Model *model = NULL;
@@ -34,10 +28,11 @@ Model *model = NULL;
 const int width = 800;
 const int height = 800;
 const float K_d = 0.8f;
-const float l = -1.f, b = -1.f, n = 1.f, r = 1.f, t = 1.f, f = -10.f;
-Ray light(Vec3f{0.0, 0.0, 10.0}, Vec3f{0.0, 0.0, 0.0});
+const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
+Vec3f light{0.f, 0.f, 10.f};
+Vec3f camera{0.5f, 0.2f, 1.0f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
-Matrix perspective;
+Matrix mvp;
 Matrix view_port;
 
 void init_zbuffer()
@@ -53,21 +48,41 @@ void init_zbuffer()
 
 void init_matrix()
 {
-    view_port[0][0] = width / 2.f;
-    view_port[0][3] = width / 2.f;
-    view_port[1][1] = height / 2.f;
-    view_port[1][3] = height / 2.f;
-    view_port[2][2] = 1.f;
-    view_port[3][3] = 1.f;
+    // 假设模型坐标就是世界坐标
+    Matrix model = Matrix::identity();
 
-    Matrix move;
-    move[0][0] = 1.f;
-    move[0][3] = -(r + l) / 2;
-    move[1][1] = 1.f;
-    move[1][3] = -(t + b) / 2;
-    move[2][2] = 1.f;
-    move[2][3] = -(n + f) / 2;
-    move[3][3] = 1.f;
+    // 从世界坐标转移到以相机为原点的坐标
+    Vec3f camera_z = (camera - look_at).normalize();
+    Vec3f camera_x = cross(up, camera_z).normalize();
+    Vec3f camera_y = cross(camera_z, camera_x).normalize();
+
+    Matrix coordinate;
+    for (int i = 0; i < 3; i++)
+    {
+        coordinate[0][i] = camera_x[i];
+        coordinate[1][i] = camera_y[i];
+        coordinate[2][i] = camera_z[i];
+    }
+
+    Matrix move = Matrix::identity();
+    move[0][3] = -camera.x;
+    move[1][3] = -camera.y;
+    move[2][3] = -camera.z;
+
+    Matrix view = coordinate * move;
+
+    // 从以相机为原点的无限空间转换到以相机为原点的[-1, 1] ^ 3空间
+
+    float n = z_near, f = z_far;
+    float t = abs(n) * tan(fov / 2);
+    float b = -t;
+    float r = t * aspect_ratio;
+    float l = -r;
+
+    Matrix translate = Matrix::identity();
+    translate[0][3] = -(r + l) / 2;
+    translate[1][3] = -(t + b) / 2;
+    translate[2][3] = -(n + f) / 2;
 
     Matrix scale;
     scale[0][0] = 2 / (r - l);
@@ -81,14 +96,27 @@ void init_matrix()
     persp_to_ortho[2][2] = n + f;
     persp_to_ortho[2][3] = -n * f;
     persp_to_ortho[3][2] = 1;
-    perspective = scale * move * persp_to_ortho;
-    // perspective[0][0] = 2 * n / (r - l);
-    // perspective[0][2] = (l + r) / (l - r);
-    // perspective[1][1] = 2 * n / (t - b);
-    // perspective[1][2] = (b + t) / (b - t);
-    // perspective[2][2] = (f + n) / (n - f);
-    // perspective[2][3] = (2 * f * n) / (f - n);
-    // perspective[3][2] = 1;
+
+    Matrix perspective = scale * translate * persp_to_ortho;
+
+    mvp = perspective * view * model;
+
+    view_port[0][0] = width / 2.f;
+    view_port[0][3] = width / 2.f;
+    view_port[1][1] = height / 2.f;
+    view_port[1][3] = height / 2.f;
+    view_port[2][2] = 1.f;
+    view_port[3][3] = 1.f;
+}
+
+void init_light()
+{
+    Vec4f l4 = embed<4>(light);
+    l4 = mvp * l4;
+    l4 = l4 / l4[3];
+    light.x = l4[0];
+    light.y = l4[1];
+    light.z = l4[2];
 }
 
 Vec3f barycentric(ScreenTriangle &t, Vec2f P)
