@@ -31,6 +31,7 @@ const float K_d = 0.8f;
 const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
 Vec3f camera{0.5f, 0.2f, 1.0f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, -1.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
 Matrix mvp;
 Matrix view_port;
@@ -56,7 +57,7 @@ void init_matrix()
     Vec3f camera_x = cross(up, camera_z).normalize();
     Vec3f camera_y = cross(camera_z, camera_x).normalize();
 
-    Matrix coordinate;
+    Matrix coordinate = Matrix::identity();
     for (int i = 0; i < 3; i++)
     {
         coordinate[0][i] = camera_x[i];
