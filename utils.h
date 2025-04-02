@@ -5,19 +5,30 @@
 #include "model.cpp"    //模型类，主要实现模型的读取
 #include "geometry.cpp" //几何库，主要定义了Vec2和Vec3类型
 
-bool tri_compare(const Vec3i &a, const Vec3i &b)
+struct ScreenTriangleVert
 {
-    if (a.y != b.y)
-        return a.y < b.y;
-    return a.x < b.x;
-}
+    Vec3f screen_vert;
+    Vec3f screen_vert_normal;
+    float screen_vert_intensity;
+
+    ScreenTriangleVert() = default;
+    ScreenTriangleVert(const Vec3f &_screen_vert, const Vec3f &_screen_vert_normal, const float &_screen_vert_intensity) : screen_vert(_screen_vert), screen_vert_normal(_screen_vert_normal), screen_vert_intensity(_screen_vert_intensity)
+    {
+    }
+    bool operator<(const ScreenTriangleVert &other) const
+    {
+        if (screen_vert.y != other.screen_vert.y)
+            return screen_vert.y < other.screen_vert.y;
+        return screen_vert.x < other.screen_vert.x;
+    }
+};
 
 struct ScreenTriangle
 {
-    std::vector<Vec3f> ts;
-    ScreenTriangle(std::vector<Vec3f> &_ts) : ts(_ts)
+    std::vector<ScreenTriangleVert> ts;
+    ScreenTriangle(std::vector<ScreenTriangleVert> &_ts) : ts(_ts)
     {
-        std::sort(ts.begin(), ts.end(), tri_compare);
+        std::sort(ts.begin(), ts.end());
     }
 };
 
@@ -30,7 +41,7 @@ const int height = 800;
 const float K_d = 0.8f;
 const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{0.5f, 0.2f, 1.0f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 // Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, -1.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
 Matrix mvp;
@@ -120,11 +131,11 @@ void init_light()
     light.z = l4[2];
 }
 
-Vec3f barycentric(ScreenTriangle &t, Vec2f P)
+inline Vec3f barycentric(ScreenTriangle t, Vec2f P)
 {
-    Vec3f AB = t.ts[1] - t.ts[0];
-    Vec3f AC = t.ts[2] - t.ts[0];
-    Vec3f PA = t.ts[0] - Vec3f{P.x, P.y, 0.f};
+    Vec3f AB = t.ts[1].screen_vert - t.ts[0].screen_vert;
+    Vec3f AC = t.ts[2].screen_vert - t.ts[0].screen_vert;
+    Vec3f PA = t.ts[0].screen_vert - Vec3f{P.x, P.y, 0.f};
 
     Vec3f uv = cross(Vec3f{AB.x, AC.x, PA.x}, Vec3f{AB.y, AC.y, PA.y});
 
@@ -133,6 +144,12 @@ Vec3f barycentric(ScreenTriangle &t, Vec2f P)
         return Vec3f(1.f - (uv.x + uv.y) / uv.z, uv.y / uv.z, uv.x / uv.z);
     }
     return Vec3f{-1, 1, 1};
+}
+
+template <typename T>
+inline T uv_attribute(Vec3f uv, std::vector<T> attribute)
+{
+    return attribute[0] * uv[0] + attribute[1] * uv[1] + attribute[2] * uv[2];
 }
 
 void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
@@ -159,30 +176,43 @@ void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 
 void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
 {
-    for (float y = t.ts[0].y; y < t.ts[2].y; y++)
+    for (float y = t.ts[0].screen_vert.y; y < t.ts[2].screen_vert.y; y++)
     {
-        float x0 = (y - t.ts[2].y) / (t.ts[0].y - t.ts[2].y) * (t.ts[0].x - t.ts[2].x) + t.ts[2].x;
+        float x0 = (y - t.ts[2].screen_vert.y) / (t.ts[0].screen_vert.y - t.ts[2].screen_vert.y) * (t.ts[0].screen_vert.x - t.ts[2].screen_vert.x) + t.ts[2].screen_vert.x;
         float x1 = 0.f;
-        if (y < t.ts[1].y)
+        if (y < t.ts[1].screen_vert.y)
         {
-            x1 = (y - t.ts[1].y) / (t.ts[0].y - t.ts[1].y) * (t.ts[0].x - t.ts[1].x) + t.ts[1].x;
+            x1 = (y - t.ts[1].screen_vert.y) / (t.ts[0].screen_vert.y - t.ts[1].screen_vert.y) * (t.ts[0].screen_vert.x - t.ts[1].screen_vert.x) + t.ts[1].screen_vert.x;
         }
         else
         {
-            x1 = (y - t.ts[1].y) / (t.ts[2].y - t.ts[1].y) * (t.ts[2].x - t.ts[1].x) + t.ts[1].x;
+            x1 = (y - t.ts[1].screen_vert.y) / (t.ts[2].screen_vert.y - t.ts[1].screen_vert.y) * (t.ts[2].screen_vert.x - t.ts[1].screen_vert.x) + t.ts[1].screen_vert.x;
         }
         if (x0 > x1)
         {
             std::swap(x0, x1);
         }
+        // 各种插值
         for (float x = x0; x < x1; x++)
         {
             Vec3f uv = barycentric(t, Vec2f{x, y});
-            float z = Vec3f{t.ts[0].z, t.ts[1].z, t.ts[2].z} * uv;
-            if (z > zbuffer[(int)x][(int)y])
+            std::vector<Vec3f> verts{t.ts[0].screen_vert, t.ts[1].screen_vert, t.ts[2].screen_vert};
+            std::vector<Vec3f> normals{t.ts[0].screen_vert_normal, t.ts[1].screen_vert_normal, t.ts[2].screen_vert_normal};
+            std::vector<float> intensities{t.ts[0].screen_vert_intensity, t.ts[1].screen_vert_intensity, t.ts[2].screen_vert_intensity};
+
+            Vec3f vert = uv_attribute(uv, verts);
+            Vec3f normal = uv_attribute(uv, normals);
+            float intensity = uv_attribute(uv, intensities);
+            float cos_theta = (vert - light).normalize() * normal;
+            // which one first?
+            if (cos_theta > 1e-2)
             {
-                zbuffer[(int)x][(int)y] = z;
-                image.set(x, (int)y, color);
+                if (vert.z > zbuffer[(int)x][(int)y])
+                {
+                    zbuffer[(int)x][(int)y] = vert.z;
+                    TGAColor pixel_color{color * (cos_theta * K_d)};
+                    image.set(x, (int)y, pixel_color);
+                }
             }
         }
     }
