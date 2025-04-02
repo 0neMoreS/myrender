@@ -19,7 +19,7 @@ int main(int argc, char **argv)
         for (int j = 0; j < 3; j++)
         {
             verts.push_back(model->vert(i, j));
-            normals.push_back(model->normal(i, j).normalize());
+            normals.push_back(model->normal(i, j));
             normals[j].z = -normals[j].z;
 
             intensities.push_back(normals[j] * (verts[j] - light).normalize());
@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 
         ScreenTriangle tri{screen_tris};
         draw_triangle(tri, image, white);
+        // triangle(screen_verts[0], screen_verts[1], screen_verts[2], intensities[0], intensities[1], intensities[2], image);
     }
     image.flip_vertically();
     image.write_tga_file("output.tga");

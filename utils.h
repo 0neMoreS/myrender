@@ -41,8 +41,8 @@ const int height = 800;
 const float K_d = 0.8f;
 const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
-// Vec3f camera{0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, -1.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{-0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
 Matrix mvp;
 Matrix view_port;
@@ -203,23 +203,64 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
             Vec3f vert = uv_attribute(uv, verts);
             Vec3f normal = uv_attribute(uv, normals);
             float intensity = uv_attribute(uv, intensities);
-            float cos_theta = (vert - light).normalize() * normal;
-            // which one first?
-            // if (cos_theta > 1e-2)
-            // {
-            //     if (vert.z > zbuffer[(int)x][(int)y])
-            //     {
-            //         zbuffer[(int)x][(int)y] = vert.z;
-            //         TGAColor pixel_color{color * (cos_theta * K_d)};
-            //         image.set((int)x, (int)y, pixel_color);
-            //     }
-            // }
 
-            if (intensity > 0 && vert.z > zbuffer[(int)x][(int)y])
+            if (vert.z > zbuffer[(int)x][(int)y])
             {
                 zbuffer[(int)x][(int)y] = vert.z;
                 TGAColor pixel_color{color * K_d * intensity};
                 image.set((int)x, (int)y, pixel_color);
+            }
+        }
+    }
+}
+
+void triangle(Vec3f t0, Vec3f t1, Vec3f t2, float ity0, float ity1, float ity2, TGAImage &image)
+{
+    if (t0.y == t1.y && t0.y == t2.y)
+        return; // i dont care about degenerate triangles
+    if (t0.y > t1.y)
+    {
+        std::swap(t0, t1);
+        std::swap(ity0, ity1);
+    }
+    if (t0.y > t2.y)
+    {
+        std::swap(t0, t2);
+        std::swap(ity0, ity2);
+    }
+    if (t1.y > t2.y)
+    {
+        std::swap(t1, t2);
+        std::swap(ity1, ity2);
+    }
+
+    int total_height = t2.y - t0.y;
+    for (int i = 0; i < total_height; i++)
+    {
+        bool second_half = i > t1.y - t0.y || t1.y == t0.y;
+        int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
+        float alpha = (float)i / total_height;
+        float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height; // be careful: with above conditions no division by zero here
+        Vec3f A = t0 + Vec3f(t2 - t0) * alpha;
+        Vec3f B = second_half ? t1 + Vec3f(t2 - t1) * beta : t0 + Vec3f(t1 - t0) * beta;
+        float ityA = ity0 + (ity2 - ity0) * alpha;
+        float ityB = second_half ? ity1 + (ity2 - ity1) * beta : ity0 + (ity1 - ity0) * beta;
+        if (A.x > B.x)
+        {
+            std::swap(A, B);
+            std::swap(ityA, ityB);
+        }
+        for (int j = A.x; j <= B.x; j++)
+        {
+            float phi = B.x == A.x ? 1. : (float)(j - A.x) / (B.x - A.x);
+            Vec3f P = Vec3f(A) + Vec3f(B - A) * phi;
+            float ityP = ityA + (ityB - ityA) * phi;
+            if (P.x >= width || P.y >= height || P.x < 0 || P.y < 0)
+                continue;
+            if (zbuffer[(int)P.x][(int)P.y] < (float)P.z)
+            {
+                zbuffer[(int)P.x][(int)P.y] = (float)P.z;
+                image.set(P.x, P.y, TGAColor(255, 255, 255) * ityP);
             }
         }
     }
