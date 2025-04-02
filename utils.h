@@ -141,7 +141,7 @@ inline Vec3f barycentric(ScreenTriangle t, Vec2f P)
 
     if (std::abs(uv[2]) > 1e-2)
     {
-        return Vec3f(1.f - (uv.x + uv.y) / uv.z, uv.y / uv.z, uv.x / uv.z);
+        return Vec3f(1.f - (uv.x + uv.y) / uv.z, uv.x / uv.z, uv.y / uv.z);
     }
     return Vec3f{-1, 1, 1};
 }
@@ -209,58 +209,6 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
                 zbuffer[(int)x][(int)y] = vert.z;
                 TGAColor pixel_color{color * K_d * intensity};
                 image.set((int)x, (int)y, pixel_color);
-            }
-        }
-    }
-}
-
-void triangle(Vec3f t0, Vec3f t1, Vec3f t2, float ity0, float ity1, float ity2, TGAImage &image)
-{
-    if (t0.y == t1.y && t0.y == t2.y)
-        return; // i dont care about degenerate triangles
-    if (t0.y > t1.y)
-    {
-        std::swap(t0, t1);
-        std::swap(ity0, ity1);
-    }
-    if (t0.y > t2.y)
-    {
-        std::swap(t0, t2);
-        std::swap(ity0, ity2);
-    }
-    if (t1.y > t2.y)
-    {
-        std::swap(t1, t2);
-        std::swap(ity1, ity2);
-    }
-
-    int total_height = t2.y - t0.y;
-    for (int i = 0; i < total_height; i++)
-    {
-        bool second_half = i > t1.y - t0.y || t1.y == t0.y;
-        int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
-        float alpha = (float)i / total_height;
-        float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height; // be careful: with above conditions no division by zero here
-        Vec3f A = t0 + Vec3f(t2 - t0) * alpha;
-        Vec3f B = second_half ? t1 + Vec3f(t2 - t1) * beta : t0 + Vec3f(t1 - t0) * beta;
-        float ityA = ity0 + (ity2 - ity0) * alpha;
-        float ityB = second_half ? ity1 + (ity2 - ity1) * beta : ity0 + (ity1 - ity0) * beta;
-        if (A.x > B.x)
-        {
-            std::swap(A, B);
-            std::swap(ityA, ityB);
-        }
-        for (int j = A.x; j <= B.x; j++)
-        {
-            float phi = B.x == A.x ? 1. : (float)(j - A.x) / (B.x - A.x);
-            Vec3f P = Vec3f(A) + Vec3f(B - A) * phi;
-            float ityP = ityA + (ityB - ityA) * phi;
-            if (P.x >= width || P.y >= height || P.x < 0 || P.y < 0)
-                continue;
-            if (zbuffer[(int)P.x][(int)P.y] < (float)P.z)
-            {
-                zbuffer[(int)P.x][(int)P.y] = (float)P.z;
-                image.set(P.x, P.y, TGAColor(255, 255, 255) * ityP);
             }
         }
     }

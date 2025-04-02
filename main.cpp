@@ -36,7 +36,6 @@ int main(int argc, char **argv)
 
         ScreenTriangle tri{screen_tris};
         draw_triangle(tri, image, white);
-        // triangle(screen_verts[0], screen_verts[1], screen_verts[2], intensities[0], intensities[1], intensities[2], image);
     }
     image.flip_vertically();
     image.write_tga_file("output.tga");
