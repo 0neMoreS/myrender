@@ -41,8 +41,8 @@ const int height = 800;
 const float K_d = 0.8f;
 const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, -1.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, -1.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
 Matrix mvp;
 Matrix view_port;
@@ -176,6 +176,10 @@ void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 
 void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
 {
+    std::vector<Vec3f> verts{t.ts[0].screen_vert, t.ts[1].screen_vert, t.ts[2].screen_vert};
+    std::vector<Vec3f> normals{t.ts[0].screen_vert_normal, t.ts[1].screen_vert_normal, t.ts[2].screen_vert_normal};
+    std::vector<float> intensities{t.ts[0].screen_vert_intensity, t.ts[1].screen_vert_intensity, t.ts[2].screen_vert_intensity};
+
     for (float y = t.ts[0].screen_vert.y; y < t.ts[2].screen_vert.y; y++)
     {
         float x0 = (y - t.ts[2].screen_vert.y) / (t.ts[0].screen_vert.y - t.ts[2].screen_vert.y) * (t.ts[0].screen_vert.x - t.ts[2].screen_vert.x) + t.ts[2].screen_vert.x;
@@ -196,23 +200,26 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
         for (float x = x0; x < x1; x++)
         {
             Vec3f uv = barycentric(t, Vec2f{x, y});
-            std::vector<Vec3f> verts{t.ts[0].screen_vert, t.ts[1].screen_vert, t.ts[2].screen_vert};
-            std::vector<Vec3f> normals{t.ts[0].screen_vert_normal, t.ts[1].screen_vert_normal, t.ts[2].screen_vert_normal};
-            std::vector<float> intensities{t.ts[0].screen_vert_intensity, t.ts[1].screen_vert_intensity, t.ts[2].screen_vert_intensity};
-
             Vec3f vert = uv_attribute(uv, verts);
             Vec3f normal = uv_attribute(uv, normals);
             float intensity = uv_attribute(uv, intensities);
             float cos_theta = (vert - light).normalize() * normal;
             // which one first?
-            if (cos_theta > 1e-2)
+            // if (cos_theta > 1e-2)
+            // {
+            //     if (vert.z > zbuffer[(int)x][(int)y])
+            //     {
+            //         zbuffer[(int)x][(int)y] = vert.z;
+            //         TGAColor pixel_color{color * (cos_theta * K_d)};
+            //         image.set((int)x, (int)y, pixel_color);
+            //     }
+            // }
+
+            if (intensity > 0 && vert.z > zbuffer[(int)x][(int)y])
             {
-                if (vert.z > zbuffer[(int)x][(int)y])
-                {
-                    zbuffer[(int)x][(int)y] = vert.z;
-                    TGAColor pixel_color{color * (cos_theta * K_d)};
-                    image.set(x, (int)y, pixel_color);
-                }
+                zbuffer[(int)x][(int)y] = vert.z;
+                TGAColor pixel_color{color * K_d * intensity};
+                image.set((int)x, (int)y, pixel_color);
             }
         }
     }
