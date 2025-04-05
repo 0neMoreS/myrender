@@ -10,9 +10,10 @@ struct ScreenTriangleVert
     Vec3f screen_vert;
     Vec3f screen_vert_normal;
     float screen_vert_intensity;
+    Vec2f texture_uv;
 
     ScreenTriangleVert() = default;
-    ScreenTriangleVert(const Vec3f &_screen_vert, const Vec3f &_screen_vert_normal, const float &_screen_vert_intensity) : screen_vert(_screen_vert), screen_vert_normal(_screen_vert_normal), screen_vert_intensity(_screen_vert_intensity)
+    ScreenTriangleVert(const Vec3f &_screen_vert, const Vec3f &_screen_vert_normal, const float &_screen_vert_intensity, const Vec2f& _texture_uv) : screen_vert(_screen_vert), screen_vert_normal(_screen_vert_normal), screen_vert_intensity(_screen_vert_intensity), texture_uv(_texture_uv)
     {
     }
     bool operator<(const ScreenTriangleVert &other) const
@@ -179,6 +180,7 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
     std::vector<Vec3f> verts{t.ts[0].screen_vert, t.ts[1].screen_vert, t.ts[2].screen_vert};
     std::vector<Vec3f> normals{t.ts[0].screen_vert_normal, t.ts[1].screen_vert_normal, t.ts[2].screen_vert_normal};
     std::vector<float> intensities{t.ts[0].screen_vert_intensity, t.ts[1].screen_vert_intensity, t.ts[2].screen_vert_intensity};
+    std::vector<Vec2f> texture_uvs{t.ts[0].texture_uv,t.ts[1].texture_uv,t.ts[2].texture_uv};
 
     for (float y = t.ts[0].screen_vert.y; y < t.ts[2].screen_vert.y; y++)
     {
@@ -203,11 +205,12 @@ void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
             Vec3f vert = uv_attribute(uv, verts);
             Vec3f normal = uv_attribute(uv, normals);
             float intensity = uv_attribute(uv, intensities);
+            Vec2f texture_uv = uv_attribute(uv,texture_uvs);
 
             if (vert.z > zbuffer[(int)x][(int)y])
             {
                 zbuffer[(int)x][(int)y] = vert.z;
-                TGAColor pixel_color{color * K_d * intensity};
+                TGAColor pixel_color{model->diffuse(texture_uv) * K_d * intensity};
                 image.set((int)x, (int)y, pixel_color);
             }
         }

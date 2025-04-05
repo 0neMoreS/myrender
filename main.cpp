@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "mygl.h"
 
 int main(int argc, char **argv)
 {
@@ -14,6 +14,7 @@ int main(int argc, char **argv)
         std::vector<Vec3f> normals;
         std::vector<float> intensities;
         std::vector<Vec3f> screen_verts;
+        std::vector<Vec2f> texture_uv;
         std::vector<ScreenTriangleVert> screen_tris;
 
         for (int j = 0; j < 3; j++)
@@ -23,6 +24,7 @@ int main(int argc, char **argv)
             normals[j].z = -normals[j].z;
 
             intensities.push_back(normals[j] * (verts[j] - light).normalize());
+            texture_uv.push_back(model->uv(i,j));
 
             Vec4f v4 = embed<4>(verts[j]);
             v4 = mvp * v4;
@@ -31,7 +33,7 @@ int main(int argc, char **argv)
             // 转换成屏幕坐标时就窄化到int避免精度误差导致的像素空白
             int x = (int)v4[0], y = (int)v4[1];
             screen_verts.push_back({(float)x, (float)y, v4[2]});
-            screen_tris.push_back(ScreenTriangleVert{screen_verts[j], normals[j], intensities[j]});
+            screen_tris.push_back(ScreenTriangleVert{screen_verts[j], normals[j], intensities[j], texture_uv[j]});
         }
 
         ScreenTriangle tri{screen_tris};
