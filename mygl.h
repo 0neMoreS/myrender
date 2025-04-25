@@ -156,9 +156,9 @@ inline Vec3f barycentric(Vec3f pts[], Vec2f P)
 }
 
 template <typename T>
-inline T bary_attribute(Vec3f uv, T attribute[])
+inline T bary_attribute(Vec3f bary, T attribute[])
 {
-    return attribute[0] * uv[0] + attribute[1] * uv[1] + attribute[2] * uv[2];
+    return attribute[0] * bary[0] + attribute[1] * bary[1] + attribute[2] * bary[2];
 }
 
 void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
