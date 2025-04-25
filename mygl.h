@@ -50,7 +50,7 @@ const int height = 800;
 const float K_d = 0.8f;
 const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{-0.5f, 0.2f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{0.5f, 0.4f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 // Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 float zbuffer[width][height];
 Matrix mvp;
@@ -92,7 +92,7 @@ void init_matrix()
 
     Matrix view = coordinate * move;
 
-    // 从以相机为原点的无限空间转换到以相机为原点的[-1, 1] ^ 3空间
+    // 从以相机为原点的透视投影规定空间转换到以相机为原点的[-1, 1] ^ 3空间
 
     float n = z_near, f = z_far;
     float t = abs(n) * tan(fov / 2);
@@ -122,6 +122,7 @@ void init_matrix()
 
     mvp = perspective * view * model;
 
+    // 从[-1, 1] ^ 3转到屏幕二维坐标
     view_port[0][0] = width / 2.f;
     view_port[0][3] = width / 2.f;
     view_port[1][1] = height / 2.f;
