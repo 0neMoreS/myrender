@@ -136,7 +136,7 @@ vec<LEN, T> embed(const vec<DIM, T> &v, T fill = 1)
 }
 
 template <size_t LEN, size_t DIM, typename T>
-vec<LEN, T> proj(const vec<DIM, T> &v)
+inline vec<LEN, T> proj(const vec<DIM, T> &v)
 {
     vec<LEN, T> ret;
     for (size_t i = LEN; i--; ret[i] = v[i])
