@@ -50,21 +50,23 @@ const int height = 800;
 const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
-const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
+const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -1.f;
 Vec3f light{0.f, 0.f, 10.f};
 Vec3f camera{0.5f, 0.4f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 // Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+const float depth = 2048.f;
 float zbuffer[width][height];
+float shaowbuffer[width][height];
 Matrix mvp;
 Matrix view_port;
 
-void init_zbuffer()
+void init_buffer()
 {
     for (int i = 0; i < width; i++)
     {
         for (int j = 0; j < height; j++)
         {
-            zbuffer[i][j] = std::numeric_limits<float>::lowest();
+            zbuffer[i][j] = shaowbuffer[i][j] = std::numeric_limits<float>::lowest();
         }
     }
 }
@@ -94,7 +96,7 @@ void init_matrix()
 
     Matrix view = coordinate * move;
 
-    // 从以相机为原点的透视投影规定空间转换到以相机为原点的[-1, 1] ^ 3空间
+    // 从以相机为原点的透视投影规定空间转换到以相机为原点的[-1 , 1] ^ 3空间
 
     float n = z_near, f = z_far;
     float t = abs(n) * tan(fov / 2);
@@ -131,16 +133,6 @@ void init_matrix()
     view_port[1][3] = height / 2.f;
     view_port[2][2] = 1.f;
     view_port[3][3] = 1.f;
-}
-
-void init_light()
-{
-    Vec4f l4 = embed<4>(light);
-    l4 = mvp * l4;
-    l4 = l4 / l4[3];
-    light.x = l4[0];
-    light.y = l4[1];
-    light.z = l4[2];
 }
 
 inline Vec3f barycentric(Vec3f pts[], Vec2f P)
@@ -228,7 +220,7 @@ void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 //     }
 // }
 
-void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image)
+void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[width][height])
 {
     Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
@@ -253,9 +245,9 @@ void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image)
             }
             float zs[3] = {pts[0][2], pts[1][2], pts[2][2]};
             float z = bary_attribute(bary, zs);
-            if (z > zbuffer[(int)P.x][(int)P.y])
+            if (z > buffer[(int)P.x][(int)P.y])
             {
-                zbuffer[(int)P.x][(int)P.y] = z;
+                buffer[(int)P.x][(int)P.y] = z;
                 shader.fragment(bary, color);
                 image.set((int)P.x, (int)P.y, color);
             }

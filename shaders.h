@@ -110,9 +110,33 @@ struct SpecularMapShader : public IShader
         TGAColor c = model->diffuse(uv);
         float spec_intensity = pow(r * ((camera - vert).normalize()), model->specular(uv));
         float diffuse_intensity = std::max(0.f, n * l);
+        // the light color is included in texture, c
         color = c * (K_a + diffuse_intensity * K_d + spec_intensity * K_s);
         return true;
     }
 
     ~SpecularMapShader() = default;
+};
+
+struct ShadowShader : public IShader
+{
+    Vec3f verts[3];
+    Vec3f vertex(int iface, int nthvert)
+    {
+        Vec3f vert = model->vert(iface, nthvert);
+        Vec4f v4 = embed<4>(vert);
+        v4 = mvp * v4;
+        v4 = v4 / v4[3];
+        v4 = view_port * v4;
+        verts[nthvert] = {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
+        return verts[nthvert];
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color)
+    {
+        color = TGAColor(255, 255, 255) * (-bary_attribute(bary, verts).z);
+        return true;
+    }
+
+    ~ShadowShader() = default;
 };
