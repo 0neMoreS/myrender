@@ -6,7 +6,7 @@ int main(int argc, char **argv)
     model = new Model("./obj/african_head.obj ");
     init_zbuffer();
     init_matrix();
-    NormalMapShader shader;
+    SpecularMapShader shader;
     // init_light();
 
     for (int i = 0; i < model->nfaces(); i++)
