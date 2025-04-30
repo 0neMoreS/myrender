@@ -50,10 +50,10 @@ const int height = 800;
 const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
-const float fov = 90.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -1.f;
+const float fov = 103.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = 0.1f, z_far = 2.f;
 Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{0.5f, 0.4f, 1.25f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{-1.f, -1.f, -2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{0.f, 0.f, -2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
@@ -71,68 +71,77 @@ void init_buffer()
     }
 }
 
-void init_matrix()
+Matrix get_model_matrix()
 {
     // 假设模型坐标就是世界坐标
     Matrix model = Matrix::identity();
+    return model;
+}
 
+Matrix get_view_matrix(Vec3f camera, Vec3f look_at, Vec3f up)
+{
     // 从世界坐标转移到以相机为原点的坐标
     Vec3f camera_z = (camera - look_at).normalize();
     Vec3f camera_x = cross(up, camera_z).normalize();
     Vec3f camera_y = cross(camera_z, camera_x).normalize();
 
-    Matrix coordinate = Matrix::identity();
+    Matrix view = Matrix::identity();
     for (int i = 0; i < 3; i++)
     {
-        coordinate[0][i] = camera_x[i];
-        coordinate[1][i] = camera_y[i];
-        coordinate[2][i] = camera_z[i];
+        view[0][i] = camera_x[i];
+        view[1][i] = camera_y[i];
+        view[2][i] = camera_z[i];
     }
+    view[0][3] = -(camera * camera_x);
+    view[1][3] = -(camera * camera_y);
+    view[2][3] = -(camera * camera_z);
 
-    Matrix move = Matrix::identity();
-    move[0][3] = -camera.x;
-    move[1][3] = -camera.y;
-    move[2][3] = -camera.z;
+    return view;
+}
 
-    Matrix view = coordinate * move;
-
+Matrix get_perspective_matrix(float fov, float aspect_ratio, float n, float f)
+{
     // 从以相机为原点的透视投影规定空间转换到以相机为原点的[-1 , 1] ^ 3空间
-
-    float n = z_near, f = z_far;
     float t = abs(n) * tan(fov / 2);
     float b = -t;
     float r = t * aspect_ratio;
     float l = -r;
 
-    Matrix translate = Matrix::identity();
-    translate[0][3] = -(r + l) / 2;
-    translate[1][3] = -(t + b) / 2;
-    translate[2][3] = -(n + f) / 2;
+    Matrix perspective;
 
-    Matrix scale;
-    scale[0][0] = 2 / (r - l);
-    scale[1][1] = 2 / (t - b);
-    scale[2][2] = 2 / (n - f);
-    scale[3][3] = 1;
+    perspective[0][0] = 2 * n / (r - l);
+    perspective[1][1] = 2 * n / (t - b);
+    perspective[2][0] = (r + l) / (r - l);
+    perspective[2][1] = (t + b) / (t - b);
+    perspective[2][2] = -(f + n) / (f - n);
+    perspective[2][3] = -1;
+    perspective[3][2] = -2 * f * n / (f - n);
 
-    Matrix persp_to_ortho;
-    persp_to_ortho[0][0] = n;
-    persp_to_ortho[1][1] = n;
-    persp_to_ortho[2][2] = n + f;
-    persp_to_ortho[2][3] = -n * f;
-    persp_to_ortho[3][2] = 1;
+    return perspective;
+}
 
-    Matrix perspective = scale * translate * persp_to_ortho;
+Matrix get_orthographic_matrix(float r, float t, float n, float f)
+{
+    // see https://www.songho.ca/opengl/gl_projectionmatrix.html
+    Matrix orthographic = Matrix::identity();
+    orthographic[0][0] = 1 / r;
+    orthographic[1][1] = 1 / t;
+    orthographic[2][2] = 2 / (n - f);
+    orthographic[2][3] = -(f + n) / (f - n);
+    return orthographic;
+}
 
-    mvp = perspective * view * model;
-
+Matrix get_viewport_matrix(float width, float height)
+{
     // 从[-1, 1] ^ 3转到屏幕二维坐标
+    Matrix view_port;
     view_port[0][0] = width / 2.f;
     view_port[0][3] = width / 2.f;
     view_port[1][1] = height / 2.f;
     view_port[1][3] = height / 2.f;
     view_port[2][2] = 1.f;
     view_port[3][3] = 1.f;
+    return view_port;
 }
 
 inline Vec3f barycentric(Vec3f pts[], Vec2f P)
@@ -240,6 +249,10 @@ void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[w
         {
             Vec3f bary = barycentric(pts, P);
             if (bary.x < 0 || bary.y < 0 || bary.z < 0)
+            {
+                continue;
+            }
+            if (P.x < 0 || P.x > width || P.y < 0 || P.y > height)
             {
                 continue;
             }

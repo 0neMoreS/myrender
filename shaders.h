@@ -118,6 +118,59 @@ struct SpecularMapShader : public IShader
     ~SpecularMapShader() = default;
 };
 
+struct DebugShader : public IShader
+{
+    Vec2f uvs[3];
+    Vec3f verts[3];
+    Matrix modelm;
+    Matrix viewm;
+
+    DebugShader()
+    {
+        modelm = get_model_matrix();
+        viewm = get_view_matrix(camera, look_at, up);
+    }
+
+    Vec3f vertex(int iface, int nthvert)
+    {
+        verts[nthvert] = model->vert(iface, nthvert);
+        uvs[nthvert] = model->uv(iface, nthvert);
+
+        Vec4f debug = embed<4>(verts[nthvert]);
+        debug = viewm * modelm * debug;
+
+        Vec4f v4 = embed<4>(verts[nthvert]);
+        v4 = mvp * v4;
+        v4 = v4 / v4[3];
+
+        std::cout << "CAM: " << debug[0] << " " << debug[1] << " " << debug[2] << " " << debug[3] << std::endl;
+        std::cout << "NDC: " << v4[0] << " " << v4[1] << " " << v4[2] << " " << v4[3] << std::endl;
+
+        v4 = view_port * v4;
+
+        std::cout << "SCR: " << v4[0] << " " << v4[1] << " " << v4[2] << " " << v4[3] << std::endl;
+        return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
+    }
+
+    // 表达非线性的变化，使用map
+    bool fragment(Vec3f bary, TGAColor &color)
+    {
+        Vec2f uv = bary_attribute(bary, uvs);
+        Vec3f vert = bary_attribute(bary, verts);
+        Vec3f n = model->normal(uv).normalize();
+        Vec3f l = (light - vert).normalize();
+        Vec3f r = (n * (n * l * 2.f) - l).normalize();
+        TGAColor c = model->diffuse(uv);
+        float spec_intensity = pow(r * ((camera - vert).normalize()), model->specular(uv));
+        float diffuse_intensity = std::max(0.f, n * l);
+        // the light color is included in texture, c
+        color = c * (K_a + diffuse_intensity * K_d + spec_intensity * K_s);
+        return true;
+    }
+
+    ~DebugShader() = default;
+};
+
 struct ShadowShader : public IShader
 {
     Vec3f verts[3];
