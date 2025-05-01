@@ -128,7 +128,8 @@ struct DebugShader : public IShader
     {
         modelm = get_model_matrix();
         viewm = get_view_matrix(camera, look_at, up);
-        projectm = get_orthographic_matrix(10.f, 10.f, z_near, z_far);
+        projectm = get_orthographic_matrix(3.f, 3.f, z_near, z_far);
+        // projectm = get_perspective_matrix(fov, aspect_ratio, z_near, z_far);
         std::cout << projectm << std::endl;
     }
 

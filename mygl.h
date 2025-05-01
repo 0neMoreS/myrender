@@ -51,10 +51,10 @@ const float aspect_ratio = (float)width / (float)height;
 const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
-const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 10.f;
-Vec3f light{0.f, 0.f, 10.f};
-// Vec3f camera{1.f, 1.f, 2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-Vec3f camera{0.f, 0.f, 5.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 1e5;
+Vec3f light{5.f, 2.f, 10.f};
+Vec3f camera{0.4f, 0.3f, 1.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.f, 0.f, 5.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
@@ -67,7 +67,7 @@ void init_buffer()
     {
         for (int j = 0; j < height; j++)
         {
-            zbuffer[i][j] = shaowbuffer[i][j] = std::numeric_limits<float>::lowest();
+            zbuffer[i][j] = shaowbuffer[i][j] = std::numeric_limits<float>::max();
         }
     }
 }
@@ -256,7 +256,7 @@ void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[w
             }
             float zs[3] = {pts[0][2], pts[1][2], pts[2][2]};
             float z = bary_attribute(bary, zs);
-            if (z > buffer[(int)P.x][(int)P.y])
+            if (z < buffer[(int)P.x][(int)P.y])
             {
                 buffer[(int)P.x][(int)P.y] = z;
                 shader.fragment(bary, color);
