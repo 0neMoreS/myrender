@@ -50,10 +50,10 @@ const int height = 800;
 const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
-const float fov = 103.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = 0.1f, z_far = 2.f;
+const float fov = 103.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
 Vec3f light{0.f, 0.f, 10.f};
-// Vec3f camera{-1.f, -1.f, -2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-Vec3f camera{0.f, 0.f, -2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{1.f, 1.f, 2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
@@ -102,20 +102,17 @@ Matrix get_view_matrix(Vec3f camera, Vec3f look_at, Vec3f up)
 Matrix get_perspective_matrix(float fov, float aspect_ratio, float n, float f)
 {
     // 从以相机为原点的透视投影规定空间转换到以相机为原点的[-1 , 1] ^ 3空间
-    float t = abs(n) * tan(fov / 2);
-    float b = -t;
+    float t = n * tan(fov / 2);
     float r = t * aspect_ratio;
-    float l = -r;
 
-    Matrix perspective;
+    Matrix perspective = Matrix::identity();
 
-    perspective[0][0] = 2 * n / (r - l);
-    perspective[1][1] = 2 * n / (t - b);
-    perspective[2][0] = (r + l) / (r - l);
-    perspective[2][1] = (t + b) / (t - b);
+    perspective[0][0] = n / r;
+    perspective[1][1] = n / t;
     perspective[2][2] = -(f + n) / (f - n);
-    perspective[2][3] = -1;
-    perspective[3][2] = -2 * f * n / (f - n);
+    perspective[2][3] = -2 * f * n / (f - n);
+    perspective[3][2] = -1;
+    perspective[3][3] = 0;
 
     return perspective;
 }
