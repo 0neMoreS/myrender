@@ -47,13 +47,14 @@ Model *model = NULL;
 // 定义宽度高度
 const int width = 800;
 const int height = 800;
+const float aspect_ratio = (float)width / (float)height;
 const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
-const float fov = 103.f / 180.f * M_PI, aspect_ratio = 1.f, z_near = -0.1f, z_far = -2.f;
+const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 10.f;
 Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{1.f, 1.f, 2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-// Vec3f camera{0.f, 0.f, 1.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{1.f, 1.f, 2.5f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f camera{0.f, 0.f, 5.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
