@@ -6,7 +6,7 @@ int main(int argc, char **argv)
     // model = new Model("D:\\A1-Profession\\ComputerGraphic\\myrender\\obj\\Cube.obj");
     init_buffer();
     mvp = get_perspective_matrix(fov, aspect_ratio, z_near, z_far) * get_view_matrix(camera, look_at, up) * get_model_matrix();
-    // mvp = get_orthographic_matrix(2.f, 2.f, z_near, z_far) * get_view_matrix(camera, look_at, up) * get_model_matrix();
+    // mvp = get_orthographic_matrix(1.f, 1.f, z_near, z_far) * get_view_matrix(camera, look_at, up) * get_model_matrix();
     view_port = get_viewport_matrix(width, height);
 
     ShadowShader shadow_shader;
