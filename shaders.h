@@ -2,6 +2,8 @@
 
 struct GouraudShader : public IShader
 {
+    GouraudShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
+
     Vec3f intensities;
     Vec3f vertex(int iface, int nthvert)
     {
@@ -9,7 +11,7 @@ struct GouraudShader : public IShader
         Vec3f norm = model->normal(iface, nthvert);
         intensities[nthvert] = norm * (light - vert).normalize();
         Vec4f v4 = embed<4>(vert);
-        v4 = mvp * v4;
+        v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
         return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
@@ -26,6 +28,8 @@ struct GouraudShader : public IShader
 
 struct TextureShader : public IShader
 {
+    TextureShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
+
     Vec3f intensities;
     Vec2f uvs[3];
     Vec3f vertex(int iface, int nthvert)
@@ -35,7 +39,7 @@ struct TextureShader : public IShader
         uvs[nthvert] = model->uv(iface, nthvert);
         intensities[nthvert] = norm * (light - vert).normalize();
         Vec4f v4 = embed<4>(vert);
-        v4 = mvp * v4;
+        v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
         return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
@@ -53,6 +57,8 @@ struct TextureShader : public IShader
 
 struct NormalMapShader : public IShader
 {
+    NormalMapShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
+
     Vec2f uvs[3];
     Vec3f verts[3];
 
@@ -61,7 +67,7 @@ struct NormalMapShader : public IShader
         verts[nthvert] = model->vert(iface, nthvert);
         uvs[nthvert] = model->uv(iface, nthvert);
         Vec4f v4 = embed<4>(verts[nthvert]);
-        v4 = mvp * v4;
+        v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
         return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
@@ -85,6 +91,8 @@ struct NormalMapShader : public IShader
 
 struct SpecularMapShader : public IShader
 {
+    SpecularMapShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
+
     Vec2f uvs[3];
     Vec3f verts[3];
 
@@ -93,7 +101,7 @@ struct SpecularMapShader : public IShader
         verts[nthvert] = model->vert(iface, nthvert);
         uvs[nthvert] = model->uv(iface, nthvert);
         Vec4f v4 = embed<4>(verts[nthvert]);
-        v4 = mvp * v4;
+        v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
         return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
@@ -120,18 +128,7 @@ struct SpecularMapShader : public IShader
 
 struct DebugShader : public IShader
 {
-    Matrix modelm;
-    Matrix viewm;
-    Matrix projectm;
-
-    DebugShader()
-    {
-        modelm = get_model_matrix();
-        viewm = get_view_matrix(camera, look_at, up);
-        projectm = get_orthographic_matrix(3.f, 3.f, z_near, z_far);
-        // projectm = get_perspective_matrix(fov, aspect_ratio, z_near, z_far);
-        std::cout << projectm << std::endl;
-    }
+    DebugShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
 
     Vec3f intensities;
     Vec3f vertex(int iface, int nthvert)
@@ -147,12 +144,12 @@ struct DebugShader : public IShader
         std::cout << "INT: " << intensities[nthvert] << std::endl;
 
         Vec4f debug = embed<4>(vert);
-        debug = viewm * modelm * debug;
+        debug = iview * imodel * debug;
 
         std::cout << "CAM: " << debug[0] << " " << debug[1] << " " << debug[2] << " " << debug[3] << std::endl;
 
         Vec4f v4 = embed<4>(vert);
-        v4 = projectm * debug;
+        v4 = iproject * debug;
 
         std::cout << "NDC: " << v4[0] << " " << v4[1] << " " << v4[2] << " " << v4[3] << std::endl;
 
@@ -175,12 +172,14 @@ struct DebugShader : public IShader
 
 struct ShadowShader : public IShader
 {
+    ShadowShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
+
     Vec3f verts[3];
     Vec3f vertex(int iface, int nthvert)
     {
         Vec3f vert = model->vert(iface, nthvert);
         Vec4f v4 = embed<4>(vert);
-        v4 = mvp * v4;
+        v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
         verts[nthvert] = {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
@@ -189,7 +188,7 @@ struct ShadowShader : public IShader
 
     bool fragment(Vec3f bary, TGAColor &color)
     {
-        color = TGAColor(255, 255, 255) * (-bary_attribute(bary, verts).z);
+        color = TGAColor(255, 255, 255) * (bary_attribute(bary, verts).z);
         return true;
     }
 

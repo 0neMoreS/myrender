@@ -8,6 +8,10 @@
 
 struct IShader
 {
+    Matrix imodel;
+    Matrix iview;
+    Matrix iproject;
+    IShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : imodel(_imodel), iview(_iview), iproject(_iproject) {}
     virtual ~IShader() = default;
     virtual Vec3f vertex(int iface, int nthvert) = 0;
     virtual bool fragment(Vec3f bary, TGAColor &color) = 0;
@@ -52,13 +56,12 @@ const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
 const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 1e5;
-Vec3f light{0.f, 0.f, 10.f};
-Vec3f camera{0.5f, 0.1f, 1.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f light{2.f, 2.f, 2.f};
+Vec3f camera{1.5f, 1.1f, 2.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 // Vec3f camera{0.f, 0.f, 5.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
-Matrix mvp;
 Matrix view_port;
 
 void init_buffer()
