@@ -202,7 +202,7 @@ struct GouraudShadowShader : public IShader
 
     GouraudShadowShader(Matrix _imodel, Matrix _iview, Matrix _iproject, Vec3f light) : IShader(_imodel, _iview, _iproject)
     {
-        shadow_mvp = get_perspective_matrix(fov, aspect_ratio, z_near, z_far) * get_view_matrix(light, look_at, up) * get_model_matrix();
+        shadow_mvp = iproject * get_view_matrix(light, look_at, up) * imodel;
     }
 
     Vec3f verts[3];
@@ -258,4 +258,60 @@ struct GouraudShadowShader : public IShader
     }
 
     ~GouraudShadowShader() = default;
+};
+
+struct SpecularMapShadowShader : public IShader
+{
+    Matrix shadow_mvp;
+
+    SpecularMapShadowShader(Matrix _imodel, Matrix _iview, Matrix _iproject, Vec3f light) : IShader(_imodel, _iview, _iproject)
+    {
+        shadow_mvp = iproject * get_view_matrix(light, look_at, up) * imodel;
+    }
+
+    Vec2f uvs[3];
+    Vec3f verts[3];
+
+    Vec3f vertex(int iface, int nthvert)
+    {
+        verts[nthvert] = model->vert(iface, nthvert);
+        uvs[nthvert] = model->uv(iface, nthvert);
+        Vec4f v4 = embed<4>(verts[nthvert]);
+        v4 = iproject * iview * imodel * v4;
+        v4 = v4 / v4[3];
+        v4 = view_port * v4;
+        return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
+    }
+
+    // 表达非线性的变化，使用map
+    bool fragment(Vec3f bary, TGAColor &color)
+    {
+        Vec2f uv = bary_attribute(bary, uvs);
+        Vec3f vert = bary_attribute(bary, verts);
+        Vec3f n = model->normal(uv).normalize();
+        float bias = 0.015f * (1 - n * (light - vert).normalize());
+        Vec3f l = (light - vert).normalize();
+        Vec3f r = (n * (n * l * 2.f) - l).normalize();
+        TGAColor c = model->diffuse(uv);
+        float spec_intensity = pow(r * ((camera - vert).normalize()), model->specular(uv));
+        float diffuse_intensity = std::max(0.f, n * l);
+
+        Vec4f shadow_v = embed<4>(vert);
+        shadow_v = shadow_mvp * shadow_v;
+        shadow_v = shadow_v / shadow_v[3];
+        shadow_v = view_port * shadow_v;
+        if (shadow_v[0] < 0 || shadow_v[0] > width || shadow_v[1] < 0 || shadow_v[1] > height)
+        {
+            color = c * (K_a + diffuse_intensity * K_d + spec_intensity * K_s);
+            return true;
+        }
+
+        float shadow = 0.3f + 0.7f * (shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]] + bias > shadow_v[2]);
+
+        // the light color is included in texture, c
+        color = c * (K_a + (diffuse_intensity * K_d + spec_intensity * K_s) * shadow);
+        return true;
+    }
+
+    ~SpecularMapShadowShader() = default;
 };
