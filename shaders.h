@@ -150,10 +150,10 @@ struct DebugShader : public IShader
 
         Vec4f v4 = embed<4>(vert);
         v4 = iproject * debug;
+        v4 = v4 / v4[3];
 
         std::cout << "NDC: " << v4[0] << " " << v4[1] << " " << v4[2] << " " << v4[3] << std::endl;
 
-        v4 = v4 / v4[3];
         v4 = view_port * v4;
 
         std::cout << "SCR: " << v4[0] << " " << v4[1] << " " << v4[2] << " " << v4[3] << std::endl;
@@ -174,7 +174,7 @@ struct ShadowShader : public IShader
 {
     ShadowShader(Matrix _imodel, Matrix _iview, Matrix _iproject) : IShader(_imodel, _iview, _iproject) {}
 
-    Vec3f verts[3];
+    float zs[3];
     Vec3f vertex(int iface, int nthvert)
     {
         Vec3f vert = model->vert(iface, nthvert);
@@ -182,15 +182,66 @@ struct ShadowShader : public IShader
         v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
         v4 = view_port * v4;
-        verts[nthvert] = {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
-        return verts[nthvert];
+        zs[nthvert] = v4[2];
+        return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
     }
 
     bool fragment(Vec3f bary, TGAColor &color)
     {
-        color = TGAColor(255, 255, 255) * (bary_attribute(bary, verts).z);
+        // std::cout << pow(M_E, abs(bary_attribute(bary, verts).z) * 5) << std::endl;
+        color = TGAColor(pow(M_E, abs(bary_attribute(bary, zs)) * 5), pow(M_E, abs(bary_attribute(bary, zs)) * 5), pow(M_E, abs(bary_attribute(bary, zs)) * 5));
         return true;
     }
 
     ~ShadowShader() = default;
+};
+
+struct GouraudShadowShader : public IShader
+{
+    Matrix shadow_mvp;
+
+    GouraudShadowShader(Matrix _imodel, Matrix _iview, Matrix _iproject, Vec3f light) : IShader(_imodel, _iview, _iproject)
+    {
+        shadow_mvp = get_perspective_matrix(fov, aspect_ratio, z_near, z_far) * get_view_matrix(light, look_at, up) * get_model_matrix();
+    }
+
+    Vec3f verts[3];
+    Vec3f intensities;
+    Vec3f vertex(int iface, int nthvert)
+    {
+        verts[nthvert] = model->vert(iface, nthvert);
+        Vec3f norm = model->normal(iface, nthvert);
+        intensities[nthvert] = norm * (light - verts[nthvert]).normalize();
+        Vec4f v4 = embed<4>(verts[nthvert]);
+        v4 = iproject * iview * imodel * v4;
+        v4 = v4 / v4[3];
+        v4 = view_port * v4;
+        return {(float)((int)v4[0]), (float)((int)v4[1]), v4[2]};
+    }
+
+    bool fragment(Vec3f bary, TGAColor &color)
+    {
+        Vec3f vert = bary_attribute(bary, verts);
+        Vec4f shadow_v = embed<4>(vert);
+        shadow_v = shadow_mvp * shadow_v;
+        shadow_v = shadow_v / shadow_v[3];
+        shadow_v = view_port * shadow_v;
+        if (shadow_v[0] < 0 || shadow_v[0] > width || shadow_v[1] < 0 || shadow_v[1] > height)
+        {
+            color = TGAColor(255, 255, 255) * (bary * intensities);
+            return true;
+        }
+        if (shadow_v[2] > shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]])
+        {
+            color = TGAColor(0, 0, 0);
+        }
+        else
+        {
+            color = TGAColor(255, 255, 255) * (bary * intensities);
+        }
+
+        return true;
+    }
+
+    ~GouraudShadowShader() = default;
 };

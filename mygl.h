@@ -17,34 +17,6 @@ struct IShader
     virtual bool fragment(Vec3f bary, TGAColor &color) = 0;
 };
 
-struct ScreenTriangleVert
-{
-    Vec3f screen_vert;
-    Vec3f screen_vert_normal;
-    float screen_vert_intensity;
-    Vec2f texture_uv;
-
-    ScreenTriangleVert() = default;
-    ScreenTriangleVert(const Vec3f &_screen_vert, const Vec3f &_screen_vert_normal, const float &_screen_vert_intensity, const Vec2f &_texture_uv) : screen_vert(_screen_vert), screen_vert_normal(_screen_vert_normal), screen_vert_intensity(_screen_vert_intensity), texture_uv(_texture_uv)
-    {
-    }
-    bool operator<(const ScreenTriangleVert &other) const
-    {
-        if (screen_vert.y != other.screen_vert.y)
-            return screen_vert.y < other.screen_vert.y;
-        return screen_vert.x < other.screen_vert.x;
-    }
-};
-
-struct ScreenTriangle
-{
-    std::vector<ScreenTriangleVert> ts;
-    ScreenTriangle(std::vector<ScreenTriangleVert> &_ts) : ts(_ts)
-    {
-        std::sort(ts.begin(), ts.end());
-    }
-};
-
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red = TGAColor(255, 0, 0, 255);
 Model *model = NULL;
@@ -56,9 +28,10 @@ const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
 const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 1e5;
-Vec3f light{2.f, 2.f, 2.f};
-Vec3f camera{1.5f, 1.1f, 2.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
-// Vec3f camera{0.f, 0.f, 5.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+Vec3f light{-2.f, 2.f, 6.f};
+Vec3f parallel_light{1.f, 1.f, 1.f};
+Vec3f camera{3.f, 2.f, 6.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
+// Vec3f camera{0.f, 1.f, 15.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 const float depth = 2048.f;
 float zbuffer[width][height];
 float shaowbuffer[width][height];
@@ -188,48 +161,6 @@ void draw_line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
     }
 }
 
-// void draw_triangle(ScreenTriangle &t, TGAImage &image, TGAColor color)
-// {
-//     std::vector<Vec3f> verts{t.ts[0].screen_vert, t.ts[1].screen_vert, t.ts[2].screen_vert};
-//     std::vector<Vec3f> normals{t.ts[0].screen_vert_normal, t.ts[1].screen_vert_normal, t.ts[2].screen_vert_normal};
-//     std::vector<float> intensities{t.ts[0].screen_vert_intensity, t.ts[1].screen_vert_intensity, t.ts[2].screen_vert_intensity};
-//     std::vector<Vec2f> texture_uvs{t.ts[0].texture_uv, t.ts[1].texture_uv, t.ts[2].texture_uv};
-
-//     for (float y = t.ts[0].screen_vert.y; y < t.ts[2].screen_vert.y; y++)
-//     {
-//         float x0 = (y - t.ts[2].screen_vert.y) / (t.ts[0].screen_vert.y - t.ts[2].screen_vert.y) * (t.ts[0].screen_vert.x - t.ts[2].screen_vert.x) + t.ts[2].screen_vert.x;
-//         float x1 = 0.f;
-//         if (y < t.ts[1].screen_vert.y)
-//         {
-//             x1 = (y - t.ts[1].screen_vert.y) / (t.ts[0].screen_vert.y - t.ts[1].screen_vert.y) * (t.ts[0].screen_vert.x - t.ts[1].screen_vert.x) + t.ts[1].screen_vert.x;
-//         }
-//         else
-//         {
-//             x1 = (y - t.ts[1].screen_vert.y) / (t.ts[2].screen_vert.y - t.ts[1].screen_vert.y) * (t.ts[2].screen_vert.x - t.ts[1].screen_vert.x) + t.ts[1].screen_vert.x;
-//         }
-//         if (x0 > x1)
-//         {
-//             std::swap(x0, x1);
-//         }
-//         // 各种插值
-//         for (float x = x0; x < x1; x++)
-//         {
-//             Vec3f uv = barycentric(t, Vec2f{x, y});
-//             Vec3f vert = uv_attribute(uv, verts);
-//             Vec3f normal = uv_attribute(uv, normals);
-//             float intensity = uv_attribute(uv, intensities);
-//             Vec2f texture_uv = uv_attribute(uv, texture_uvs);
-
-//             if (vert.z > zbuffer[(int)x][(int)y])
-//             {
-//                 zbuffer[(int)x][(int)y] = vert.z;
-//                 TGAColor pixel_color{model->diffuse(texture_uv) * K_d * intensity};
-//                 image.set((int)x, (int)y, pixel_color);
-//             }
-//         }
-//     }
-// }
-
 void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[width][height])
 {
     Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
@@ -246,6 +177,10 @@ void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[w
     TGAColor color;
     for (P.x = bboxmin.x; P.x <= bboxmax.x; P.x++)
     {
+        if (P.x < 0 || P.x > width)
+        {
+            continue;
+        }
         for (P.y = bboxmin.y; P.y <= bboxmax.y; P.y++)
         {
             Vec3f bary = barycentric(pts, P);
@@ -253,7 +188,7 @@ void draw_triangle(IShader &shader, Vec3f pts[], TGAImage &image, float buffer[w
             {
                 continue;
             }
-            if (P.x < 0 || P.x > width || P.y < 0 || P.y > height)
+            if (P.y < 0 || P.y > height)
             {
                 continue;
             }

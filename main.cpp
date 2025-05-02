@@ -5,11 +5,11 @@ int main(int argc, char **argv)
     // model = new Model("D:\\A1-Profession\\ComputerGraphic\\myrender\\obj\\african_head.obj");
     model = new Model("D:\\A1-Profession\\ComputerGraphic\\myrender\\obj\\Cube.obj");
     init_buffer();
-    // mvp = get_perspective_matrix(fov, aspect_ratio, z_near, z_far) * get_view_matrix(camera, look_at, up) * get_model_matrix();
-    // mvp = get_orthographic_matrix(2.f, 2.f, z_near, z_far) * get_view_matrix(camera, look_at, up) * get_model_matrix();
+    Matrix project = get_perspective_matrix(fov, aspect_ratio, z_near, z_far);
+    // Matrix project = get_orthographic_matrix(5.f, 5.f, z_near, z_far);
     view_port = get_viewport_matrix(width, height);
 
-    ShadowShader shadow_shader(get_model_matrix(), get_view_matrix(camera, look_at, up), get_perspective_matrix(fov, aspect_ratio, z_near, z_far));
+    ShadowShader shadow_shader(get_model_matrix(), get_view_matrix(light, look_at, up), project);
     TGAImage depth(width, height, TGAImage::RGB);
     for (int i = 0; i < model->nfaces(); i++)
     {
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     depth.flip_vertically();
     depth.write_tga_file("shadow.tga");
 
-    DebugShader frame_shader(get_model_matrix(), get_view_matrix(camera, look_at, up), get_perspective_matrix(fov, aspect_ratio, z_near, z_far));
+    GouraudShadowShader frame_shader(get_model_matrix(), get_view_matrix(camera, look_at, up), project, light);
     TGAImage frame(width, height, TGAImage::RGB);
     int end = model->nfaces();
     for (int i = 0; i < end; i++)
