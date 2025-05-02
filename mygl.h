@@ -28,7 +28,7 @@ const float K_a = 0.1f;
 const float K_d = 0.8f;
 const float K_s = 0.5f;
 const float fov = 103.f / 180.f * M_PI, z_near = 0.1f, z_far = 1e5;
-Vec3f light{-2.f, 2.f, 6.f};
+Vec3f light{-6.f, 2.f, 4.f};
 Vec3f parallel_light{1.f, 1.f, 1.f};
 Vec3f camera{3.f, 2.f, 6.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};
 // Vec3f camera{0.f, 1.f, 15.f}, look_at{0.f, 0.f, 0.f}, up{0.f, 1.f, 0.f};

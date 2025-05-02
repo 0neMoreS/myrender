@@ -9,7 +9,7 @@ int main(int argc, char **argv)
     // Matrix project = get_orthographic_matrix(5.f, 5.f, z_near, z_far);
     view_port = get_viewport_matrix(width, height);
 
-    ShadowShader shadow_shader(get_model_matrix(), get_view_matrix(light, look_at, up), project);
+    ShadowShader shadow_shader(get_model_matrix(), get_view_matrix(light, look_at, up), get_perspective_matrix(90.f / 180.f * M_PI, aspect_ratio, z_near, z_far));
     TGAImage depth(width, height, TGAImage::RGB);
     for (int i = 0; i < model->nfaces(); i++)
     {

@@ -206,12 +206,13 @@ struct GouraudShadowShader : public IShader
     }
 
     Vec3f verts[3];
+    Vec3f norms[3];
     Vec3f intensities;
     Vec3f vertex(int iface, int nthvert)
     {
         verts[nthvert] = model->vert(iface, nthvert);
-        Vec3f norm = model->normal(iface, nthvert);
-        intensities[nthvert] = norm * (light - verts[nthvert]).normalize();
+        norms[nthvert] = model->normal(iface, nthvert);
+        intensities[nthvert] = norms[nthvert] * (light - verts[nthvert]).normalize();
         Vec4f v4 = embed<4>(verts[nthvert]);
         v4 = iproject * iview * imodel * v4;
         v4 = v4 / v4[3];
@@ -222,6 +223,11 @@ struct GouraudShadowShader : public IShader
     bool fragment(Vec3f bary, TGAColor &color)
     {
         Vec3f vert = bary_attribute(bary, verts);
+        Vec3f norm = bary_attribute(bary, norms);
+        float bias = 0.015f * (1 - norm * (light - vert).normalize());
+
+        Vec3f v_debug = vert;
+
         Vec4f shadow_v = embed<4>(vert);
         shadow_v = shadow_mvp * shadow_v;
         shadow_v = shadow_v / shadow_v[3];
@@ -231,14 +237,22 @@ struct GouraudShadowShader : public IShader
             color = TGAColor(255, 255, 255) * (bary * intensities);
             return true;
         }
-        if (shadow_v[2] > shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]])
-        {
-            color = TGAColor(0, 0, 0);
-        }
-        else
-        {
-            color = TGAColor(255, 255, 255) * (bary * intensities);
-        }
+
+        float shadow = 0.3f + 0.7f * (shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]] + bias > shadow_v[2]);
+        std::cout << shadow << std::endl;
+        // if (shadow_v[2] > shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]] + bias)
+        // {
+        //     std::cout << "------------------" << std::endl;
+        //     std::cout << "SHA: " << v_debug[0] << " " << v_debug[1] << " " << v_debug[2] << std::endl;
+        //     std::cout << "SCR: " << shadow_v[0] << " " << shadow_v[1] << " " << shadow_v[2] << " " << shaowbuffer[(int)shadow_v[0]][(int)shadow_v[1]] + 1e-3 << std::endl;
+        //     color = TGAColor(0, 0, 0);
+        // }
+        // else
+        // {
+        //     color = TGAColor(255, 255, 255) * (bary * intensities);
+        // }
+
+        color = TGAColor(255, 255, 255) * (bary * intensities) * shadow;
 
         return true;
     }
